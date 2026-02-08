@@ -1,7 +1,8 @@
 
 import React from 'react';
-import { Trash2, ExternalLink, Lightbulb, Loader2, ChevronRight } from 'lucide-react';
+import { Trash2, ExternalLink, Volume2, Loader2 } from 'lucide-react';
 import { Word } from '../types';
+import { speakJapanese } from '../services/ai_service';
 
 interface WordListProps {
   words: Word[];
@@ -18,7 +19,7 @@ const WordList: React.FC<WordListProps> = ({ words, onDelete }) => {
       {words.map((word) => (
         <div 
           key={word.id} 
-          className={`bg-white p-5 rounded-2xl border border-gray-50 shadow-sm active:scale-[0.98] transition-all relative ${word.status === 'pending' ? 'opacity-70' : ''}`}
+          className={`bg-white p-5 rounded-2xl border border-gray-50 shadow-sm active:scale-[0.99] transition-all relative ${word.status === 'pending' ? 'opacity-70' : ''}`}
         >
           <div className="flex justify-between items-start">
             <div className="flex-1">
@@ -26,7 +27,15 @@ const WordList: React.FC<WordListProps> = ({ words, onDelete }) => {
                 {word.status === 'pending' ? (
                   <Loader2 size={12} className="animate-spin text-red-500" />
                 ) : (
-                  <span className="text-[10px] font-bold text-gray-400 tracking-wider uppercase">{word.reading}</span>
+                  <div className="flex items-center space-x-1">
+                    <span className="text-[10px] font-bold text-gray-400 tracking-wider uppercase">{word.reading}</span>
+                    <button 
+                      onClick={() => speakJapanese(word.kanji)}
+                      className="p-1 text-gray-300 hover:text-red-500"
+                    >
+                      <Volume2 size={12} />
+                    </button>
+                  </div>
                 )}
                 <span className="text-[8px] px-1.5 py-0.5 bg-gray-100 rounded text-gray-400 font-bold">{word.level}</span>
               </div>
@@ -42,16 +51,21 @@ const WordList: React.FC<WordListProps> = ({ words, onDelete }) => {
 
           <p className="mt-2 text-gray-600 font-medium">{word.meaning}</p>
 
-          {word.status === 'completed' && word.example && (
-             <div className="mt-3 pt-3 border-t border-gray-50 flex items-center justify-between group">
-                <p className="text-xs text-gray-400 italic line-clamp-1 flex-1">
-                  {word.example}
-                </p>
-                <div className="flex space-x-2 ml-2">
-                  <button onClick={() => window.open(`https://jisho.org/search/${word.kanji}`, '_blank')} className="p-2 text-blue-400">
+          {word.status === 'completed' && (
+             <div className="mt-3 pt-3 border-t border-gray-50">
+                {word.example && (
+                  <div className="mb-2">
+                    <p className="text-xs text-gray-500 font-mincho italic mb-1 leading-snug">{word.example}</p>
+                    {word.exampleTranslation && (
+                      <p className="text-[10px] text-gray-300">{word.exampleTranslation}</p>
+                    )}
+                  </div>
+                )}
+                <div className="flex justify-end items-center space-x-2">
+                  <button onClick={() => window.open(`https://jisho.org/search/${word.kanji}`, '_blank')} className="p-2 text-blue-300 hover:text-blue-500 transition-colors">
                     <ExternalLink size={14} />
                   </button>
-                  <button onClick={() => onDelete(word.id)} className="p-2 text-gray-300">
+                  <button onClick={() => onDelete(word.id)} className="p-2 text-gray-200 hover:text-red-400 transition-colors">
                     <Trash2 size={14} />
                   </button>
                 </div>
