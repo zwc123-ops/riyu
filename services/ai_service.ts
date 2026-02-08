@@ -2,7 +2,17 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { AIWordSuggestion } from "../types";
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// 安全获取 API KEY，防止在某些浏览器环境下 process 未定义导致崩溃
+const getApiKey = () => {
+  try {
+    return (typeof process !== 'undefined' && process.env) ? process.env.API_KEY : '';
+  } catch (e) {
+    return '';
+  }
+};
+
+const apiKey = getApiKey();
+const ai = new GoogleGenAI({ apiKey: apiKey || 'NO_KEY' });
 
 export async function getWordSuggestion(kanji: string): Promise<AIWordSuggestion | null> {
   const deepSeekKey = localStorage.getItem('deepseek_api_key');
@@ -21,24 +31,30 @@ export async function getWordSuggestion(kanji: string): Promise<AIWordSuggestion
           messages: [
             {
               role: "system",
-              content: "你是一个日语词典助手。请返回 JSON 格式数据。"
+              content: "你是一个专业的日语词典助手。请直接返回 JSON 格式数据，不要包含任何 Markdown 代码块包裹。"
             },
             {
               role: "user", 
-              content: `请为日语单词 "${kanji}" 提供：reading(平假名), meaning(中文含义), example(日文例句), exampleTranslation(例句翻译), mnemonic(助记法)。`
+              content: `请为日语单词 "${kanji}" 提供：reading(读音,平假名), meaning(中文含义), example(日文例句), exampleTranslation(例句翻译), mnemonic(助记法)。`
             }
           ],
           response_format: { type: "json_object" }
         })
       });
       const data = await response.json();
-      return JSON.parse(data.choices[0].message.content) as AIWordSuggestion;
+      const content = data.choices[0].message.content;
+      return typeof content === 'string' ? JSON.parse(content) : content;
     } catch (e) {
       console.error("DeepSeek Error, falling back to Gemini", e);
     }
   }
 
-  // 默认使用 Gemini
+  // 如果没有 DeepSeek Key 或调用失败，使用默认的 Gemini
+  if (!apiKey) {
+    console.warn("未检测到 API_KEY，请确保环境变量已配置");
+    return null;
+  }
+
   try {
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
