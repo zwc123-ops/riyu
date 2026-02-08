@@ -30,8 +30,8 @@ const WordList: React.FC<WordListProps> = ({ words, onDelete }) => {
                   <div className="flex items-center space-x-1">
                     <span className="text-[10px] font-bold text-gray-400 tracking-wider uppercase">{word.reading}</span>
                     <button 
-                      onClick={() => speakJapanese(word.kanji)}
-                      className="p-1 text-gray-300 hover:text-red-500"
+                      onClick={() => speakJapanese(word.kanji, word.reading)}
+                      className="p-1 text-gray-300 hover:text-red-500 active:scale-125 transition-transform"
                     >
                       <Volume2 size={12} />
                     </button>
@@ -52,12 +52,12 @@ const WordList: React.FC<WordListProps> = ({ words, onDelete }) => {
           <p className="mt-2 text-gray-600 font-medium">{word.meaning}</p>
 
           {word.status === 'completed' && (
-             <div className="mt-3 pt-3 border-t border-gray-50">
+             <div className="mt-3 pt-3 border-t border-gray-100">
                 {word.example && (
-                  <div className="mb-2">
+                  <div className="mb-2 bg-gray-50/50 p-3 rounded-xl">
                     <p className="text-xs text-gray-500 font-mincho italic mb-1 leading-snug">{word.example}</p>
                     {word.exampleTranslation && (
-                      <p className="text-[10px] text-gray-300">{word.exampleTranslation}</p>
+                      <p className="text-[10px] text-gray-400">{word.exampleTranslation}</p>
                     )}
                   </div>
                 )}

@@ -11,11 +11,8 @@ const getApiKey = () => {
 };
 
 const apiKey = getApiKey();
-
-// 用于生成内容的 AI 实例
 const ai = new GoogleGenAI({ apiKey: apiKey || 'NO_KEY' });
 
-// 用于解码 Base64 raw PCM 数据
 function decodeBase64(base64: string) {
   const binaryString = atob(base64);
   const bytes = new Uint8Array(binaryString.length);
@@ -44,9 +41,6 @@ async function decodeAudioData(
   return buffer;
 }
 
-/**
- * 单词详情解析服务
- */
 export async function getWordSuggestion(kanji: string): Promise<AIWordSuggestion | null> {
   const deepSeekKey = localStorage.getItem('deepseek_api_key');
 
@@ -63,11 +57,11 @@ export async function getWordSuggestion(kanji: string): Promise<AIWordSuggestion
           messages: [
             {
               role: "system",
-              content: "你是一个专业的日语词典助手。请直接返回 JSON 格式数据，包含：reading(平假名), meaning(中文含义), example(日文例句), exampleTranslation(例句翻译), mnemonic(助记法)。不要包含 Markdown 代码块包裹。"
+              content: "你是一个专业的日语词典助手。请返回 JSON 格式，包含：reading(平假名), meaning(中文含义), example(日文例句), exampleTranslation(例句翻译), mnemonic(助记法)。"
             },
             {
               role: "user", 
-              content: `请解析日语单词 "${kanji}"。`
+              content: `解析单词: "${kanji}"`
             }
           ],
           response_format: { type: "json_object" }
@@ -76,7 +70,7 @@ export async function getWordSuggestion(kanji: string): Promise<AIWordSuggestion
       const data = await response.json();
       return JSON.parse(data.choices[0].message.content) as AIWordSuggestion;
     } catch (e) {
-      console.error("DeepSeek Error, falling back to Gemini", e);
+      console.error("DeepSeek Error", e);
     }
   }
 
@@ -85,7 +79,7 @@ export async function getWordSuggestion(kanji: string): Promise<AIWordSuggestion
   try {
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
-      contents: `请为日语单词 "${kanji}" 提供详细信息。返回读音（平假名）、中文含义、地道日文例句、例句中文翻译、助记法。请严格遵守 JSON 格式。`,
+      contents: `请为日语单词 "${kanji}" 提供：读音（平假名）、中文含义、日文例句、例句翻译、助记法。严格 JSON 格式。`,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -103,18 +97,23 @@ export async function getWordSuggestion(kanji: string): Promise<AIWordSuggestion
     });
     return JSON.parse(response.text.trim()) as AIWordSuggestion;
   } catch (error) {
-    console.error("Gemini Error:", error);
     return null;
   }
 }
 
 /**
- * 语音合成服务
+ * 改进的发音服务
+ * @param text 要读的文本（汉字或句子）
+ * @param reading 明确的读音引导（假名），防止多音字读错
  */
-export async function speakJapanese(text: string) {
+export async function speakJapanese(text: string, reading?: string) {
+  // 如果提供了假名引导，构建更精准的指令
+  const prompt = reading 
+    ? `Read this Japanese word "${text}" as pronounced: "${reading}".` 
+    : `Read this Japanese text naturally: "${text}"`;
+
   if (!apiKey) {
-    // Fallback 到浏览器自带 TTS
-    const uttr = new SpeechSynthesisUtterance(text);
+    const uttr = new SpeechSynthesisUtterance(reading || text);
     uttr.lang = 'ja-JP';
     window.speechSynthesis.speak(uttr);
     return;
@@ -123,12 +122,12 @@ export async function speakJapanese(text: string) {
   try {
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash-preview-tts",
-      contents: [{ parts: [{ text: `Read this Japanese word or sentence clearly: ${text}` }] }],
+      contents: [{ parts: [{ text: prompt }] }],
       config: {
         responseModalities: [Modality.AUDIO],
         speechConfig: {
           voiceConfig: {
-            prebuiltVoiceConfig: { voiceName: 'Kore' }, // Kore 是一个适合日语的自然声音
+            prebuiltVoiceConfig: { voiceName: 'Kore' },
           },
         },
       },
@@ -144,9 +143,7 @@ export async function speakJapanese(text: string) {
       source.start();
     }
   } catch (e) {
-    console.error("TTS Error:", e);
-    // 降级使用浏览器 TTS
-    const uttr = new SpeechSynthesisUtterance(text);
+    const uttr = new SpeechSynthesisUtterance(reading || text);
     uttr.lang = 'ja-JP';
     window.speechSynthesis.speak(uttr);
   }
